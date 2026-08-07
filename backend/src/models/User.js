@@ -38,7 +38,7 @@ const userSchema = new Schema(
     password: {
       type: String,
       select: false,
-      minlength: [6, "Password must be at least 6 characters"],
+      minlength: [8, "Password must be at least 8 characters"],
     },
 
     // ---- Authorisation ---------------------------------------------------
@@ -47,7 +47,7 @@ const userSchema = new Schema(
     role: {
       type: String,
       enum: {
-        values: ["admin", "analyst", "viewer", "readonly"],
+        values: ["admin", "analyst", "viewer"],
         message: "{VALUE} is not a valid role",
       },
       default: "viewer",
@@ -175,9 +175,6 @@ const userSchema = new Schema(
 );
 
 // ---- Indexes --------------------------------------------------------------
-
-/** Lookup by role for admin user management */
-userSchema.index({ role: 1 });
 
 /** Compound index for active users by role */
 userSchema.index({ isActive: 1, role: 1 });
