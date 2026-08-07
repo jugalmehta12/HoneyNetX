@@ -1,0 +1,142 @@
+---
+references:
+  - "File: /frontend/src/components/analytics/AnalyticsFilters.jsx"
+  - "File: /frontend/src/components/analytics/AnalyticsSummaryCards.jsx"
+  - "File: /frontend/src/components/analytics/AttackTimelineChart.jsx"
+  - "File: /frontend/src/components/analytics/AttackTypeDistribution.jsx"
+  - "File: /frontend/src/components/analytics/MostTargetedPorts.jsx"
+  - "File: /frontend/src/components/analytics/ProtocolDistribution.jsx"
+  - "File: /frontend/src/components/analytics/RecentTrendCard.jsx"
+  - "File: /frontend/src/components/analytics/ThreatScoreCard.jsx"
+  - "File: /frontend/src/components/analytics/TopAttackTypes.jsx"
+  - "File: /frontend/src/components/analytics/TopCountriesChart.jsx"
+  - "File: /frontend/src/components/attacklogs/AttackDetailsDrawer.jsx"
+  - "File: /frontend/src/components/attacklogs/AttackFilters.jsx"
+  - "File: /frontend/src/components/attacklogs/AttackSeverityBadge.jsx"
+  - "File: /frontend/src/components/attacklogs/AttackStatistics.jsx"
+  - "File: /frontend/src/components/attacklogs/AttackStatusBadge.jsx"
+  - "File: /frontend/src/components/attacklogs/AttackTable.jsx"
+  - "File: /frontend/src/components/common/EmptyState.jsx"
+  - "File: /frontend/src/components/common/Pagination.jsx"
+  - "File: /frontend/src/components/common/SearchBar.jsx"
+  - "File: /frontend/src/components/common/SectionHeader.jsx"
+  - "File: /frontend/src/components/common/StatCard.jsx"
+  - "File: /frontend/src/components/honeypot/HoneypotActions.jsx"
+  - "File: /frontend/src/components/honeypot/HoneypotDetailsDrawer.jsx"
+  - "File: /frontend/src/components/honeypot/HoneypotStatusBadge.jsx"
+  - "File: /frontend/src/components/honeypot/HoneypotSummaryCards.jsx"
+  - "File: /frontend/src/components/honeypot/HoneypotTable.jsx"
+  - "File: /frontend/src/components/honeypot/TopologyCard.jsx"
+  - "File: /frontend/src/components/reports/GenerateReportDialog.jsx"
+  - "File: /frontend/src/components/reports/ReportFilters.jsx"
+  - "File: /frontend/src/components/reports/ReportPreviewDrawer.jsx"
+  - "File: /frontend/src/components/reports/ReportStatusBadge.jsx"
+  - "File: /frontend/src/components/reports/ReportsSummaryCards.jsx"
+  - "File: /frontend/src/components/reports/ReportsTable.jsx"
+  - "File: /frontend/src/components/settings/AboutCard.jsx"
+  - "File: /frontend/src/components/settings/ApiConfigurationCard.jsx"
+  - "File: /frontend/src/components/settings/AppearanceSettings.jsx"
+  - "File: /frontend/src/components/settings/NotificationSettings.jsx"
+  - "File: /frontend/src/components/settings/ProfileCard.jsx"
+  - "File: /frontend/src/components/settings/SecuritySettings.jsx"
+  - "File: /frontend/src/components/settings/SystemStatusCard.jsx"
+  - "File: /frontend/src/data/mockAnalytics.js"
+  - "File: /frontend/src/data/mockAttackLogs.js"
+  - "File: /frontend/src/data/mockHoneypots.js"
+  - "File: /frontend/src/data/mockReports.js"
+  - "File: /frontend/src/data/mockSettings.js"
+  - "File: /frontend/src/pages/analytics/AnalyticsPage.jsx"
+  - "File: /frontend/src/pages/attacks/AttacksPage.jsx"
+  - "File: /frontend/src/pages/honeypot/HoneypotPage.jsx"
+  - "File: /frontend/src/pages/reports/ReportsPage.jsx"
+  - "File: /frontend/src/pages/settings/SettingsPage.jsx"
+generationTime: 2026-08-06T18:29:24.350Z
+---
+flowchart TD
+    App["HoneyNetX frontend"] --> Route{"Active page / route"}
+
+    subgraph SharedData["Mock data sources"]
+        direction TB
+        AnalyticsData[("mockAnalytics")]
+        AttackLogsData[("mockAttackLogs")]
+        HoneypotsData[("mockHoneypots")]
+        ReportsData[("mockReports")]
+        SettingsData[("mockSettings")]
+    end
+
+    Route -->|Analytics| AnalyticsPage["AnalyticsPage"]
+    Route -->|Attacks| AttacksPage["AttacksPage"]
+    Route -->|Honeypot| HoneypotPage["HoneypotPage"]
+    Route -->|Reports| ReportsPage["ReportsPage"]
+    Route -->|Settings| SettingsPage["SettingsPage"]
+
+    subgraph AnalyticsFlow["Analytics control flow"]
+        direction TB
+        AnalyticsPage --> AnalyticsFilters["AnalyticsFilters"]
+        AnalyticsFilters --> AnalyticsState{"filters changed?"}
+        AnalyticsState -->|update state| AnalyticsPage
+        AnalyticsPage --> AnalyticsWidgets["AnalyticsSummaryCards + AttackTimelineChart + AttackTypeDistribution + ProtocolDistribution + TopCountriesChart + TopAttackTypes + MostTargetedPorts + ThreatScoreCard + RecentTrendCard"]
+        AnalyticsData --> AnalyticsWidgets
+    end
+
+    subgraph AttacksFlow["Attack logs control flow"]
+        direction TB
+        AttacksPage --> AttackControls["SearchBar + AttackFilters"]
+        AttackControls --> AttackState{"query or filters changed?"}
+        AttackState -->|useMemo| FilteredLogs["filter by source IP, attack type, username, protocol, country, severity, status"]
+        AttackLogsData --> FilteredLogs
+        FilteredLogs --> AttackPageCheck{"more than 10 results?"}
+        AttackPageCheck -->|Yes| AttackPagination["Pagination"]
+        AttackPageCheck -->|No| AttackTable["AttackTable + AttackSeverityBadge + AttackStatusBadge + row actions"]
+        AttackPageCheck --> AttackTable
+        AttackPagination --> AttackTable
+        AttackTable -->|0 rows| AttackEmptyState["EmptyState"]
+        AttackTable -->|View details| AttackDetailsDrawer["AttackDetailsDrawer"]
+    end
+
+    subgraph HoneypotFlow["Honeypot control flow"]
+        direction TB
+        HoneypotPage --> HoneypotControls["SearchBar + HoneypotFilters"]
+        HoneypotControls --> HoneypotState{"query or filters changed?"}
+        HoneypotState -->|useMemo| FilteredHoneypots["filter by name, type, host IP, id, and status"]
+        HoneypotData --> FilteredHoneypots
+        FilteredHoneypots --> HoneypotSummary["HoneypotSummaryCards + StatCard"]
+        FilteredHoneypots --> HoneypotTable["HoneypotTable + HoneypotStatusBadge + HoneypotActions"]
+        FilteredHoneypots --> TopologyCard["TopologyCard"]
+        HoneypotTable -->|0 rows| HoneypotEmptyState["EmptyState"]
+        HoneypotTable -->|View details| HoneypotDetailsDrawer["HoneypotDetailsDrawer"]
+        HoneypotTable -->|start / stop / restart / configure / logs| HoneypotAction["onAction handler"]
+    end
+
+    subgraph ReportsFlow["Reports control flow"]
+        direction TB
+        ReportsPage --> ReportControls["SearchBar + ReportFilters"]
+        ReportControls --> ReportState{"query, type, status, or dateRange changed?"}
+        ReportState -->|useMemo| FilteredReports["filter by name, id, type, generatedBy, status, and date cutoff"]
+        ReportsData --> FilteredReports
+        FilteredReports --> ReportPageCheck{"more than 10 reports?"}
+        ReportPageCheck -->|Yes| ReportPagination["Pagination"]
+        ReportPageCheck -->|No| ReportsTable["ReportsTable + ReportStatusBadge"]
+        ReportPageCheck --> ReportsTable
+        ReportPagination --> ReportsTable
+        ReportsTable -->|0 rows| ReportEmptyState["EmptyState"]
+        ReportsTable -->|Preview| ReportPreviewDrawer["ReportPreviewDrawer"]
+        ReportsPage -->|Generate report| GenerateReportDialog["GenerateReportDialog"]
+        GenerateReportDialog -->|2 second timer| ReportsPage
+    end
+
+    subgraph SettingsFlow["Settings control flow"]
+        direction TB
+        SettingsPage --> SettingsState["nested settings state"]
+        SettingsData --> SettingsState
+        SettingsState --> ProfileCard["ProfileCard"]
+        SettingsState --> AppearanceSettings["AppearanceSettings"]
+        SettingsState --> NotificationSettings["NotificationSettings"]
+        SettingsState --> SecuritySettings["SecuritySettings"]
+        SettingsState --> ApiConfigurationCard["ApiConfigurationCard"]
+        SettingsState --> SystemStatusCard["SystemStatusCard"]
+        SettingsState --> AboutCard["AboutCard"]
+        AppearanceSettings -->|onChange| SettingsState
+        NotificationSettings -->|onChange| SettingsState
+        SecuritySettings -->|onChange| SettingsState
+    end
