@@ -1,19 +1,35 @@
+require("dotenv").config();
+
 const app = require("./app");
 const config = require("./config");
+const { connectDatabase, disconnectDatabase } = require("./config/database");
 
-const server = app.listen(config.port, () => {
-  console.log(
-    `HoneyNetX server running in ${config.nodeEnv} mode on port ${config.port}`
-  );
-});
+let server;
+
+const startServer = async () => {
+  await connectDatabase();
+
+  server = app.listen(config.port, () => {
+    console.log(
+      `HoneyNetX server running in ${config.nodeEnv} mode on port ${config.port}`
+    );
+  });
+};
 
 // Graceful shutdown
-const shutdown = (signal) => {
+const shutdown = async (signal) => {
   console.log(`\n${signal} received. Shutting down gracefully...`);
-  server.close(() => {
-    console.log("Server closed.");
+
+  if (server) {
+    server.close(async () => {
+      console.log("HTTP server closed.");
+      await disconnectDatabase();
+      process.exit(0);
+    });
+  } else {
+    await disconnectDatabase();
     process.exit(0);
-  });
+  }
 
   // Force exit after 10s if graceful shutdown stalls
   setTimeout(() => {
@@ -33,5 +49,7 @@ process.on("uncaughtException", (err) => {
   console.error("Uncaught Exception:", err);
   shutdown("uncaughtException");
 });
+
+startServer();
 
 module.exports = server;
