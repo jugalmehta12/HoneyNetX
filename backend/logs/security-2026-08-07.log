@@ -1,2 +1,0 @@
-{"email":"test@test.com","level":"warn","message":"direct security test","timestamp":"2026-08-08 00:15:05.118"}
-{"email":"httptest@test.io","ip":"::1","level":"warn","message":"User registered successfully","role":"admin","timestamp":"2026-08-08 00:15:05.703","userId":"6a7627b154d98903d93caba8"}
