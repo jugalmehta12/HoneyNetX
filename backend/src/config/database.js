@@ -10,7 +10,7 @@ const connectDatabase = async () => {
   try {
     await mongoose.connect(config.mongodbUri);
     retryCount = 0;
-    console.log(`MongoDB connected: ${config.mongodbUri}`);
+    console.log("MongoDB connected successfully.");
   } catch (err) {
     retryCount++;
 
