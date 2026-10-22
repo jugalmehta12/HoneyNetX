@@ -118,7 +118,6 @@ function AnalyticsPage() {
       ],
     };
 
-    const nowDate = new Date(now);
     const countWithin = (duration) => filteredEvents.filter((event) => now - new Date(event.timestamp).getTime() <= duration).length;
     const trends = {
       hourly: { current: countWithin(60 * 60 * 1000), change: 0 },
@@ -135,13 +134,13 @@ function AnalyticsPage() {
       topTypes: topTypes.length ? topTypes : [{ type: "No events", count: 0, severity: "Low" }],
       ports: ports.length ? ports : [{ port: 0, protocol: "N/A", count: 0, risk: "Low" }],
       stats: {
-        totalAttacks: total,
+        totalAttacks: filteredEvents.length,
         totalAttacksTrend: 0,
-        criticalAlerts: events.filter((event) => event.severity === "Critical").length,
+        criticalAlerts: filteredEvents.filter((event) => event.severity === "Critical").length,
         criticalAlertsTrend: 0,
         blockedThreats: 0,
         blockedThreatsTrend: 0,
-        uniqueAttackers: new Set(events.map((event) => event.sourceIp)).size,
+        uniqueAttackers: new Set(filteredEvents.map((event) => event.sourceIp)).size,
         uniqueAttackersTrend: 0,
       },
       threatScore,
@@ -167,7 +166,7 @@ function AnalyticsPage() {
         <div>
           <h2 className="text-2xl font-semibold tracking-tight">Analytics</h2>
           <p className="text-muted-foreground">Statistics computed from the newest records returned by the HoneyNetX API.</p>
-          <p className="mt-1 text-xs text-muted-foreground">{loading ? "Refreshing…" : `${filteredEvents.length} loaded events · ${total} total records in database`}</p>
+          <p className="mt-1 text-xs text-muted-foreground">{loading ? "Refreshing analytics…" : `${filteredEvents.length} matching events for selected filters · ${total} total records in database`}</p>
         </div>
         <div className="flex items-center gap-2">
           <button onClick={() => load(true)} disabled={loading} className="inline-flex items-center gap-2 rounded-lg border border-border bg-background px-3 py-2 text-sm font-medium hover:bg-muted disabled:opacity-60">
