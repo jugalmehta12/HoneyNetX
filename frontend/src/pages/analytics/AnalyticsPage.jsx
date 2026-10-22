@@ -146,7 +146,7 @@ function AnalyticsPage() {
       threatScore,
       trends,
     };
-  }, [events, filteredEvents, total]);
+  }, [filteredEvents]);
 
   const exportCsv = () => {
     const columns = ["timestamp", "sourceIp", "attackType", "protocol", "severity", "command", "sessionId"];
