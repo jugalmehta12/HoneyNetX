@@ -1,42 +1,18 @@
-import { AlertTriangle, ShieldAlert, ShieldCheck, Activity } from "lucide-react";
+import { AlertTriangle, ShieldAlert, LogIn, Activity } from "lucide-react";
 import StatCard from "@/components/common/StatCard";
 
 function AttackStatistics({ logs }) {
-  const totalAttacks = logs.length;
-  const criticalCount = logs.filter((l) => l.severity === "Critical").length;
-  const blockedCount = logs.filter((l) => l.status === "Blocked").length;
-  const uniqueIPs = new Set(logs.map((l) => l.sourceIp)).size;
+  const totalEvents = logs.length;
+  const highSeverityCount = logs.filter((log) => ["High", "Critical"].includes(log.severity)).length;
+  const loginAttempts = logs.filter((log) => log.attackType === "Failed Login Attempt").length;
+  const uniqueSourceIps = new Set(logs.map((log) => log.sourceIp).filter(Boolean)).size;
 
   return (
     <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-      <StatCard
-        title="Total Attacks"
-        value={totalAttacks}
-        status="Last 24 hours"
-        variant="info"
-        icon={AlertTriangle}
-      />
-      <StatCard
-        title="Critical Alerts"
-        value={criticalCount}
-        status="Requires attention"
-        variant="danger"
-        icon={ShieldAlert}
-      />
-      <StatCard
-        title="Blocked Threats"
-        value={blockedCount}
-        status="Auto-mitigated"
-        variant="success"
-        icon={ShieldCheck}
-      />
-      <StatCard
-        title="Unique Source IPs"
-        value={uniqueIPs}
-        status="Distinct attackers"
-        variant="warning"
-        icon={Activity}
-      />
+      <StatCard title="Loaded Events" value={totalEvents} status="Current filtered results" variant="info" icon={AlertTriangle} />
+      <StatCard title="High / Critical" value={highSeverityCount} status="Among loaded events" variant="danger" icon={ShieldAlert} />
+      <StatCard title="Failed Login Events" value={loginAttempts} status="Recorded by honeypot" variant="warning" icon={LogIn} />
+      <StatCard title="Unique Source IPs" value={uniqueSourceIps} status="Among loaded events" variant="success" icon={Activity} />
     </div>
   );
 }
