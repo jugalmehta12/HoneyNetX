@@ -5,11 +5,13 @@
  * mapping rules via a strategy object.
  */
 
-// ── Severity inference from event type ────────────────────────────
+// ── Severity inference from event type / command indicators ─────────
 const SEVERITY_MAP = {
   login_attempt: "medium",
   login_success: "high",
-  command: "high",
+  // Commands use a conservative baseline; recognizable high-risk
+  // command-line indicators can raise severity for analyst triage.
+  command: "medium",
   file_upload: "high",
   file_download: "medium",
   connection: "low",
@@ -19,17 +21,54 @@ const SEVERITY_MAP = {
   other: "low",
 };
 
+const ROUTINE_COMMAND_PATTERNS = [
+  /^(?:whoami|id|pwd|exit|logout|clear|history|help|date|uptime|hostname|groups|who|w|tty|true|false)(?:\s|$)/i,
+  /^(?:ls|dir|echo|cd|uname|which|env|printenv)(?:\s|$)/i,
+];
+
+const HIGH_RISK_COMMAND_PATTERNS = [
+  /(?:^|\s)(?:curl|wget|fetch|certutil|bitsadmin)(?:\s|$)/i,
+  /(?:^|\s)(?:nc|ncat|netcat|socat)(?:\s|$)/i,
+  /(?:^|\s)(?:useradd|usermod|userdel|chpasswd|crontab)(?:\s|$)/i,
+  /(?:^|\s)(?:chmod|chown)\s+(?:-[^\s]+\s+)*(?:0?777|4755|u\+s|a\+s)\b/i,
+  /(?:\/dev\/(?:tcp|udp)|bash\s+-i\b|sh\s+-i\b)/i,
+  /\b(?:base64\s+(?:-d|--decode)|python\d?\s+-c|perl\s+-e|ruby\s+-e)\b/i,
+  /\b(?:mkfs(?:\.\w+)?|fdisk|parted)\b/i,
+  /\brm\s+-[^\s]*r[^\s]*f\b/i,
+  /\bdd\b[^\n]*\bof=\/dev\//i,
+  /(?:\/etc\/shadow|authorized_keys|\.ssh\/id_rsa)/i,
+  /\b(?:sudo|su)\s+(?:-|root\b)/i,
+];
+
 /**
- * Infer severity from event type when not provided.
+ * Infer a conservative severity from an event category and, for command
+ * events, a small set of recognizable command-line indicators.
+ *
+ * This is a triage heuristic, not proof that a command succeeded or that a
+ * host was compromised. Unknown commands default to medium for review.
+ *
  * @param {string} eventType
+ * @param {string} [command]
  * @returns {string}
  */
-const inferSeverity = (eventType) => SEVERITY_MAP[eventType] || "low";
+const inferSeverity = (eventType, command = "") => {
+  if (eventType === "command") {
+    const input = String(command || "").trim();
+    if (HIGH_RISK_COMMAND_PATTERNS.some((pattern) => pattern.test(input))) {
+      return "high";
+    }
+    if (ROUTINE_COMMAND_PATTERNS.some((pattern) => pattern.test(input))) {
+      return "low";
+    }
+  }
+
+  return SEVERITY_MAP[eventType] || "low";
+};
 
 /**
  * Map a generic parsed event to the AttackLog structure.
  *
- * Expected generic fields (source-agnostic):
+ * Expected generic fields:
  *   - eventId    {string}  Unique event identifier
  *   - source     {string}  Honeypot engine name (cowrie|dionaea|...)
  *   - srcIp      {string}  Attacker source IP
@@ -42,7 +81,7 @@ const inferSeverity = (eventType) => SEVERITY_MAP[eventType] || "low";
  *   - severity   {string}  low|medium|high|critical (optional, inferred)
  *   - username   {string}  Captured username (optional)
  *   - password   {string}  Captured password (optional)
- *   - command    {string}  Executed command (optional)
+ *   - command    {string}  Captured command input (optional)
  *   - timestamp  {string}  ISO timestamp (optional, defaults to now)
  *   - metadata   {object}  Additional key-value pairs (optional)
  *
@@ -51,7 +90,8 @@ const inferSeverity = (eventType) => SEVERITY_MAP[eventType] || "low";
  */
 const mapEvent = (event) => {
   const eventType = normalizeEventType(event.eventType);
-  const severity = event.severity || inferSeverity(eventType);
+  // Honor explicit severity from trusted upstream processors; otherwise infer.
+  const severity = event.severity || inferSeverity(eventType, event.command);
 
   return {
     source: String(event.source || "custom").toLowerCase().trim(),
@@ -115,4 +155,4 @@ const toNumber = (val) => {
   return Number.isFinite(n) ? n : undefined;
 };
 
-module.exports = { mapEvent, mapEvents };
+module.exports = { mapEvent, mapEvents, inferSeverity };

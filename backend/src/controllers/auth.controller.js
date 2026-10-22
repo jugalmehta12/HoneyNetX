@@ -28,7 +28,7 @@ const generateRefreshToken = (user) =>
 
 const register = async (req, res) => {
   try {
-    const { name, email, password, role } = req.body;
+    const { name, email, password } = req.body;
 
     const existing = await User.findOne({ email });
     if (existing) {
@@ -41,11 +41,12 @@ const register = async (req, res) => {
 
     const hashedPassword = await bcrypt.hash(password, SALT_ROUNDS);
 
+    // Public registration must never let callers choose an administrative role.
     const user = await User.create({
       name,
       email,
       password: hashedPassword,
-      role: role || "viewer",
+      role: "viewer",
     });
 
     const accessToken = generateAccessToken(user);
