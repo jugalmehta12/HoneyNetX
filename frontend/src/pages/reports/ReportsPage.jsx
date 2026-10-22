@@ -61,12 +61,15 @@ function downloadCsv(records) {
     columns.join(","),
     ...records.map((record) => columns.map((key) => escape(record[key])).join(",")),
   ].join("\r\n");
-  const url = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8;" }));
+  const url = URL.createObjectURL(new Blob(["\uFEFF", csv], { type: "text/csv;charset=utf-8;" }));
   const anchor = document.createElement("a");
   anchor.href = url;
   anchor.download = "honeynetx-reports.csv";
+  document.body.appendChild(anchor);
   anchor.click();
-  URL.revokeObjectURL(url);
+  anchor.remove();
+  // Let the browser start the download before releasing the object URL.
+  window.setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
 function ReportsPage() {
@@ -140,7 +143,17 @@ function ReportsPage() {
           <button onClick={() => loadReports(true)} disabled={loading} className="inline-flex items-center gap-2 rounded-lg border border-border bg-background px-3 py-2 text-sm font-medium hover:bg-muted disabled:opacity-60">
             <RefreshCw className={`size-4 ${loading ? "animate-spin" : ""}`} aria-hidden="true" /><span>Refresh</span>
           </button>
-          <button onClick={() => downloadCsv(filteredReports)} disabled={!filteredReports.length} className="inline-flex items-center gap-2 rounded-lg border border-border bg-background px-3 py-2 text-sm font-medium hover:bg-muted disabled:opacity-60">
+          <button
+            onClick={() => {
+              downloadCsv(filteredReports);
+              toast.success(filteredReports.length
+                ? `Exported ${filteredReports.length} report record${filteredReports.length === 1 ? "" : "s"} to CSV`
+                : "Downloaded a CSV with headers only; no report records match the current filters.");
+            }}
+            disabled={loading || Boolean(error)}
+            title={error ? "Reports could not be loaded, so export is unavailable." : "Export the currently filtered report records to CSV."}
+            className="inline-flex items-center gap-2 rounded-lg border border-border bg-background px-3 py-2 text-sm font-medium hover:bg-muted disabled:opacity-60"
+          >
             <FileText className="size-4" aria-hidden="true" /><span>Export CSV</span>
           </button>
           <button onClick={() => window.print()} className="inline-flex items-center gap-2 rounded-lg border border-border bg-background px-3 py-2 text-sm font-medium hover:bg-muted">
