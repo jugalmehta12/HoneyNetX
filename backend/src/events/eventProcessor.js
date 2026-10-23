@@ -1,8 +1,67 @@
+const mongoose = require("mongoose");
 const AttackLog = require("../models/AttackLog");
+const Honeypot = require("../models/Honeypot");
+const ingestionConfig = require("../config/ingestion");
 const logger = require("../utils/logger");
 const parser = require("../services/ingestion/parser");
 const { normalizeCowrieEvent } = require("../services/ingestion/cowrieAdapter");
 const { mapEvent } = require("../services/ingestion/mapper");
+
+const ACTIONABLE_ATTACK_TYPES = new Set([
+  "login_attempt",
+  "login_success",
+  "command",
+  "file_upload",
+  "file_download",
+  "scan",
+  "exploit",
+]);
+
+const configuredHoneypotId = String(ingestionConfig.honeypotId || "").trim();
+let hasWarnedAboutHoneypotLink = false;
+
+/**
+ * Resolve an optional configured honeypot reference. A bad/stale ID or
+ * a source/engine mismatch must not prevent otherwise valid event ingestion.
+ *
+ * @param {string} source
+ * @returns {Promise<import("mongoose").Types.ObjectId|undefined>}
+ */
+const resolveConfiguredHoneypotId = async (source) => {
+  if (!configuredHoneypotId) return undefined;
+
+  const warnOnce = (message, details = {}) => {
+    if (hasWarnedAboutHoneypotLink) return;
+    hasWarnedAboutHoneypotLink = true;
+    logger.warn(message, details);
+  };
+
+  if (!mongoose.Types.ObjectId.isValid(configuredHoneypotId)) {
+    warnOnce("Ingestion: INGESTION_HONEYPOT_ID is not a valid MongoDB ObjectId");
+    return undefined;
+  }
+
+  try {
+    const honeypot = await Honeypot.findOne({
+      _id: configuredHoneypotId,
+      engine: source,
+    }).select("_id").lean();
+
+    if (!honeypot) {
+      warnOnce("Ingestion: configured honeypot was not found or its engine does not match", {
+        source,
+      });
+      return undefined;
+    }
+
+    return honeypot._id;
+  } catch (err) {
+    warnOnce("Ingestion: could not resolve configured honeypot; storing event without a honeypot link", {
+      error: err.message,
+    });
+    return undefined;
+  }
+};
 
 /**
  * Event processor — receives raw log lines, parses them,
@@ -106,6 +165,9 @@ const processLine = async (line) => {
   // ── Map to generic AttackLog structure ─────────────────────────
   const mapped = mapEvent(event);
 
+  // ── Resolve the configured honeypot (when configured) ────────
+  const honeypotId = await resolveConfiguredHoneypotId(mapped.source);
+
   // ── Build MongoDB document ────────────────────────────────────
   const doc = {
     eventId: event.eventId,
@@ -139,11 +201,38 @@ const processLine = async (line) => {
 
     // Processing state
     processed: true,
+    honeypotId,
   };
 
   // ── Store in MongoDB ──────────────────────────────────────────
   try {
     await AttackLog.create(doc);
+
+    // Count only newly stored, actionable attack telemetry. Connection and
+    // sensor-lifecycle events remain linked but do not inflate the attack count.
+    if (doc.honeypotId && ACTIONABLE_ATTACK_TYPES.has(doc.eventType)) {
+      try {
+        const counterUpdate = await Honeypot.updateOne(
+          { _id: doc.honeypotId },
+          { $inc: { totalAttacks: 1 } }
+        );
+
+        if (counterUpdate.matchedCount === 0) {
+          logger.warn("Ingestion: linked honeypot disappeared before its attack counter update", {
+            honeypotId: String(doc.honeypotId),
+            eventId: doc.eventId,
+          });
+        }
+      } catch (counterError) {
+        // The attack log is already stored, so a counter failure is reported
+        // separately rather than misclassifying the ingested event as failed.
+        logger.error("Ingestion: honeypot attack counter update failed", {
+          error: counterError.message,
+          honeypotId: String(doc.honeypotId),
+          eventId: doc.eventId,
+        });
+      }
+    }
 
     logger.debug("Ingestion: event stored", {
       eventId: doc.eventId,
