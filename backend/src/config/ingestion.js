@@ -21,6 +21,9 @@ const ingestionConfig = {
 
   /** Character encoding when reading the log file */
   encoding: process.env.INGESTION_ENCODING || "utf8",
+
+  /** Optional registered honeypot ObjectId for events read from this source */
+  honeypotId: (process.env.INGESTION_HONEYPOT_ID || "").trim(),
 };
 
 module.exports = ingestionConfig;
