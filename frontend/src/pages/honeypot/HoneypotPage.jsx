@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { RefreshCw, Search, Server, Activity, ShieldCheck, Info } from "lucide-react";
+import { RefreshCw, Search, Info } from "lucide-react";
+import toast from "react-hot-toast";
 import api from "@/services/api";
 
 function normalizeHoneypot(record) {
@@ -60,17 +61,11 @@ function HoneypotPage() {
       const records = Array.isArray(payload?.honeypots) ? payload.honeypots : [];
       setHoneypots(records.map(normalizeHoneypot));
       setTotal(payload?.pagination?.total ?? records.length);
-      if (showToast) {
-        const { default: toast } = await import("react-hot-toast");
-        toast.success("Honeypot inventory refreshed");
-      }
+      if (showToast) toast.success("Honeypot inventory refreshed");
     } catch (err) {
       const message = err.response?.data?.message || "Unable to load honeypot inventory from the API.";
       setError(message);
-      if (showToast) {
-        const { default: toast } = await import("react-hot-toast");
-        toast.error(message);
-      }
+      if (showToast) toast.error(message);
     } finally {
       setLoading(false);
     }
